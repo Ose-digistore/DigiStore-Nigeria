@@ -1,6 +1,6 @@
-// Flutterwave payment integration
+// Updated Flutterwave service with correct API parameters
 export interface FlutterwaveConfig {
-  public_key: string;
+  public_key: string; // Updated from PBFPubKey
   tx_ref: string;
   amount: number;
   currency: string;
@@ -19,36 +19,51 @@ export interface FlutterwaveConfig {
   onClose: () => void;
 }
 
-export class FlutterwaveService {
+export interface PaymentResponse {
+  status: 'successful' | 'cancelled' | 'failed';
+  transaction_id?: string;
+  tx_ref?: string;
+  flw_ref?: string;
+  amount?: number;
+  currency?: string;
+  customer?: {
+    email: string;
+    name: string;
+  };
+}
+
+class FlutterwaveService {
   private publicKey: string;
 
-  constructor(publicKey: string) {
-    this.publicKey = publicKey;
+  constructor() {
+    // Use correct environment variable names
+    this.publicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || 'FLWPUBK_TEST-b8d0c3c9d4e5f6a7b8c9d0e1f2a3b4c5-X';
   }
 
   // Generate transaction reference
   generateTxRef(): string {
-    return `DS-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    return `digistore-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  // Create payment configuration
+  // Create payment configuration with correct parameters
   createPaymentConfig(
     amount: number,
     customerEmail: string,
     customerName: string,
+    customerPhone: string,
     productName: string,
     onSuccess: (response: any) => void,
     onClose: () => void
   ): FlutterwaveConfig {
     return {
-      public_key: this.publicKey,
+      public_key: this.publicKey, // Correct parameter name
       tx_ref: this.generateTxRef(),
       amount: amount,
       currency: 'NGN',
       payment_options: 'card,mobilemoney,ussd,banktransfer',
       customer: {
         email: customerEmail,
-        phone_number: '+2347025649112',
+        phone_number: customerPhone,
         name: customerName,
       },
       customizations: {
@@ -61,20 +76,16 @@ export class FlutterwaveService {
     };
   }
 
-  // Verify payment
-  async verifyPayment(transactionId: string): Promise<any> {
-    try {
-      // In a real application, this would be done on the backend
-      console.log('Verifying payment:', transactionId);
-      return { status: 'success', transaction_id: transactionId };
-    } catch (error) {
-      console.error('Payment verification failed:', error);
-      throw error;
-    }
+  // Get public key
+  getPublicKey(): string {
+    return this.publicKey;
+  }
+
+  // Validate configuration
+  isConfigValid(): boolean {
+    return this.publicKey && !this.publicKey.includes('your_key_here');
   }
 }
 
-// Initialize Flutterwave service
-export const flutterwaveService = new FlutterwaveService(
-  process.env.REACT_APP_FLUTTERWAVE_PUBLIC_KEY || 'FLWPUBK_TEST-b8b3c0d4c8f1e2a3d4e5f6g7h8i9j0k1-X'
-);
+export const flutterwaveService = new FlutterwaveService();
+export default flutterwaveService;

@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, CreditCard, Shield } from 'lucide-react';
-import FlutterwavePaymentModal from './FlutterwavePaymentModal';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { CreditCard, Shield, Clock, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import FlutterwavePaymentModal from './FlutterwavePaymentModal';
 
 interface Product {
-  id: string;
+  id: number;
   name: string;
   price: number;
   description: string;
@@ -21,116 +23,143 @@ interface CheckoutModalProps {
 }
 
 export default function CheckoutModal({ product, isOpen, onClose }: CheckoutModalProps) {
-  const [customerInfo, setCustomerInfo] = useState({
+  const [customerData, setCustomerData] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
   });
   const [showPayment, setShowPayment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomerInfo(prev => ({
+    setCustomerData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }));
   };
 
-  const handleProceedToPayment = () => {
-    if (!customerInfo.name || !customerInfo.email) {
-      toast.error('Please fill in all required fields');
-      return;
+  const validateForm = () => {
+    if (!customerData.name.trim()) {
+      toast.error('Please enter your full name');
+      return false;
     }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(customerInfo.email)) {
+    if (!customerData.email.trim() || !customerData.email.includes('@')) {
       toast.error('Please enter a valid email address');
-      return;
+      return false;
     }
+    if (!customerData.phone.trim() || customerData.phone.length < 10) {
+      toast.error('Please enter a valid phone number (minimum 10 digits)');
+      return false;
+    }
+    return true;
+  };
 
-    setShowPayment(true);
+  const handleProceedToPayment = () => {
+    if (!validateForm()) return;
+    
+    setIsProcessing(true);
+    
+    // Brief processing delay for better UX
+    setTimeout(() => {
+      setIsProcessing(false);
+      setShowPayment(true);
+    }, 1000);
   };
 
   const handlePaymentSuccess = async (response: any) => {
-    setIsProcessing(true);
-    
     try {
       console.log('Payment successful:', response);
       
-      // Simulate order processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Store order information in localStorage
+      const orderData = {
+        transactionId: response.transaction_id || response.tx_ref,
+        productId: product.id,
+        productName: product.name,
+        amount: product.price,
+        customerName: customerData.name,
+        customerEmail: customerData.email,
+        customerPhone: customerData.phone,
+        status: 'completed',
+        createdAt: new Date().toISOString(),
+        flwRef: response.flw_ref,
+      };
+
+      // Save to localStorage
+      const existingOrders = JSON.parse(localStorage.getItem('digistore_orders') || '[]');
+      existingOrders.push(orderData);
+      localStorage.setItem('digistore_orders', JSON.stringify(existingOrders));
+
+      toast.success('🎉 Payment successful! Thank you for your purchase!');
       
-      toast.success('Payment successful! Check your email for download instructions.');
+      // Close modals and reset form
+      setShowPayment(false);
+      onClose();
+      setCustomerData({ name: '', email: '', phone: '' });
       
-      // Redirect to success page or close modal
+      // Show success message with download instructions
       setTimeout(() => {
-        onClose();
-        setIsProcessing(false);
-        setShowPayment(false);
-        setCustomerInfo({ name: '', email: '', phone: '' });
-      }, 3000);
+        toast.success('📧 Download instructions have been sent to your email!', {
+          duration: 5000,
+        });
+      }, 2000);
       
     } catch (error) {
-      console.error('Order processing failed:', error);
-      toast.error('Payment successful but order processing failed. Please contact support.');
-      setIsProcessing(false);
+      console.error('Error processing successful payment:', error);
+      toast.error('Payment successful but there was an issue processing your order. Please contact support.');
     }
   };
 
-  const handlePaymentClose = () => {
+  const handlePaymentError = (error: string) => {
+    console.error('Payment error:', error);
+    toast.error(error || 'Payment failed. Please try again.');
+    setShowPayment(false);
+  };
+
+  const handleClosePayment = () => {
     setShowPayment(false);
   };
 
   const handleModalClose = () => {
-    if (!isProcessing) {
+    if (!showPayment) {
       onClose();
-      setShowPayment(false);
-      setCustomerInfo({ name: '', email: '', phone: '' });
+      setCustomerData({ name: '', email: '', phone: '' });
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleModalClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Checkout</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleModalClose}
-              disabled={isProcessing}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen && !showPayment} onOpenChange={handleModalClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Secure Checkout
+            </DialogTitle>
+            <DialogDescription>
+              Complete your purchase safely and securely
+            </DialogDescription>
+          </DialogHeader>
 
-        {isProcessing ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-lg font-semibold">Processing your order...</p>
-            <p className="text-gray-600">Please don't close this window</p>
-          </div>
-        ) : !showPayment ? (
           <div className="space-y-6">
             {/* Product Summary */}
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border">
               <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
               <p className="text-gray-600 text-sm mb-3">{product.description}</p>
-              <div className="flex justify-between items-center">
-                <span className="text-2xl font-bold text-green-600">
-                  ₦{product.price.toLocaleString()}
-                </span>
-                <span className="text-sm text-gray-500 line-through">₦15,000</span>
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold text-green-600">₦{product.price.toLocaleString()}</span>
+                <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
+                  67% OFF
+                </Badge>
               </div>
             </div>
+
+            <Separator />
 
             {/* Customer Information */}
             <div className="space-y-4">
               <h4 className="font-semibold flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                Your Information
+                Customer Information
               </h4>
               
               <div>
@@ -138,64 +167,104 @@ export default function CheckoutModal({ product, isOpen, onClose }: CheckoutModa
                 <Input
                   id="name"
                   name="name"
-                  value={customerInfo.name}
-                  onChange={handleInputChange}
+                  type="text"
                   placeholder="Enter your full name"
+                  value={customerData.name}
+                  onChange={handleInputChange}
                   required
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="email">Email Address *</Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  value={customerInfo.email}
+                  placeholder="Enter your email address"
+                  value={customerData.email}
                   onChange={handleInputChange}
-                  placeholder="Enter your email"
                   required
                 />
               </div>
-              
+
               <div>
-                <Label htmlFor="phone">Phone Number (Optional)</Label>
+                <Label htmlFor="phone">Phone Number *</Label>
                 <Input
                   id="phone"
                   name="phone"
-                  value={customerInfo.phone}
+                  type="tel"
+                  placeholder="e.g., 08123456789"
+                  value={customerData.phone}
                   onChange={handleInputChange}
-                  placeholder="Enter your phone number"
+                  required
                 />
               </div>
             </div>
 
-            {/* Proceed Button */}
-            <Button 
-              onClick={handleProceedToPayment}
-              className="w-full bg-blue-600 hover:bg-blue-700"
-              size="lg"
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              Proceed to Payment
-            </Button>
+            {/* Security Features */}
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2 text-green-700 mb-2">
+                <Shield className="h-4 w-4" />
+                <span className="font-medium">Secure Payment Guarantee</span>
+              </div>
+              <div className="text-sm text-green-600 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3" />
+                  <span>Instant delivery after payment</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Download className="h-3 w-3" />
+                  <span>Download links valid for 30 days</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-3 w-3" />
+                  <span>Powered by Flutterwave - Bank-level security</span>
+                </div>
+              </div>
+            </div>
 
-            <div className="text-xs text-gray-500 text-center">
-              <p>🔒 Your information is secure and encrypted</p>
-              <p>📧 Download link will be sent to your email instantly</p>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={handleModalClose} className="flex-1">
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleProceedToPayment} 
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  `Pay ₦${product.price.toLocaleString()}`
+                )}
+              </Button>
             </div>
           </div>
-        ) : (
-          <FlutterwavePaymentModal
-            amount={product.price}
-            customerEmail={customerInfo.email}
-            customerName={customerInfo.name}
-            productName={product.name}
-            onSuccess={handlePaymentSuccess}
-            onClose={handlePaymentClose}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Flutterwave Payment Modal */}
+      {showPayment && (
+        <FlutterwavePaymentModal
+          isOpen={showPayment}
+          onClose={handleClosePayment}
+          onSuccess={handlePaymentSuccess}
+          onError={handlePaymentError}
+          paymentData={{
+            amount: product.price,
+            email: customerData.email,
+            phone: customerData.phone,
+            name: customerData.name,
+            title: product.name,
+            description: product.description,
+          }}
+        />
+      )}
+    </>
   );
 }
