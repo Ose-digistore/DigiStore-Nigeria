@@ -83,7 +83,7 @@ Sent from Premium Digital Products website.`;
                   <div>
                     <p className="font-medium">WhatsApp</p>
                     <a href="https://wa.me/2347025649112" className="text-green-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                      +234 702 564 9112
+                      +2347025649112
                     </a>
                   </div>
                 </div>

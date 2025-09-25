@@ -205,15 +205,15 @@ export default function Index() {
             <div>
               <h4 className="font-semibold mb-4">Contact</h4>
               <div className="space-y-2 text-gray-300">
-                <p>Email: support@digistore.ng</p>
-                <p>Phone: +234 (0) 123 456 789</p>
-                <p>Lagos, Nigeria</p>
+                <p>Email: sammygodsent7@gmail.com</p>
+                <p>WhatsApp: +2347025649112</p>
+                <p>Benin City, Nigeria</p>
               </div>
             </div>
           </div>
           
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
-            <p>&copy; 2024 DigiStore. All rights reserved. Built with ❤️ in Nigeria.</p>
+            <p>&copy; 2025 DigiStore. All rights reserved. Built with ❤️ in Nigeria.</p>
           </div>
         </div>
       </footer>
